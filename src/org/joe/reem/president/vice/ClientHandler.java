@@ -64,7 +64,7 @@ public class ClientHandler extends Thread
                 switch (command)
                 {
                     case "signin" -> SignIn(info, message[2]);
-                    case "register" -> RegisterUser(info, message[2]);
+                    case "register" -> RegisterUser(info, message[2], message[3]);
                     case "signout" -> SignOut();
                     case "timeline" -> Timeline();
                     case "users" -> UsersToFollow();
@@ -185,17 +185,17 @@ public class ClientHandler extends Thread
      * Adds the user's username to the database and logs them in. The log in takes the form of initializing the global variables user and userID
      * @param username the username to be added to the database
      */
-    private void RegisterUser(final String username, final String password) throws IOException
+    private void RegisterUser(final String username, final String eMail, final String password) throws IOException
     {
-        //add user to the database
-        final String email = username + "@gmail.com"; //create user email
-        db.addUser(username, email, password); //add user to the database
+        if (db.getUsernames().contains(username)) forClient.writeObject(new JabberMessage("already-registered")); //username already exists
+        else if (db.geteMails().contains(eMail)) forClient.writeObject(new JabberMessage("eMail-already-in-use")); //email already exists
 
-        //initialize global variables
-        setUser(username);
-        setUserID(db.getUserID(username));
-
-        forClient.writeObject(new JabberMessage("signedin"));
+        //new user
+        else
+        {
+            db.addUser(username, eMail, password); //add user to the database
+            forClient.writeObject(new JabberMessage("registered"));
+        }
         forClient.flush();
     }
 

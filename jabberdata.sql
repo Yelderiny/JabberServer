@@ -1,4 +1,4 @@
-insert into jabberuser (
+insert into jabberuser(
     values (0, 'donaldJtrump', 'donald@donald.com', 'thedonald'),
     (1, 'kim','kim@kanye.com', 'kimk'),
     (2, 'DavidBowie','david@bowienet.com', 'david'),
@@ -71,7 +71,7 @@ insert into follows(
     (12,12)
 );
 
-insert into likes (
+insert into likes(
     values(0,2),
     (2,3),
     (0,4),

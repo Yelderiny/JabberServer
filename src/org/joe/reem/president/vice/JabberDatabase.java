@@ -31,13 +31,54 @@ public class JabberDatabase {
 	public Connection getConnection() { return conn; }
 
 	/**
+	 * This method returns a list of all the usernames in the database
+	 * @return a list of usernames in the database
+	 */
+	public ArrayList<String> getUsernames()
+	{
+		var ret = new ArrayList<String>();
+
+		try
+		{
+			PreparedStatement stmt = conn.prepareStatement("select username from jabberuser");
+
+			ResultSet rs = stmt.executeQuery();
+
+			while (rs.next()) { ret.add(rs.getObject("username").toString()); }
+		}
+		catch (SQLException throwables) { throwables.printStackTrace(); }
+
+		return ret;
+	}
+
+	/**
+	 * This method returns a list of all eMails registered to users in the database
+	 * @return a list of emails in the database
+	 */
+	public ArrayList<String> geteMails()
+	{
+		var ret = new ArrayList<String>();
+
+		try
+		{
+			PreparedStatement stmt = conn.prepareStatement("select emailadd from jabberuser");
+
+			ResultSet rs = stmt.executeQuery();
+
+			while (rs.next()) { ret.add(rs.getObject("emailadd").toString()); }
+		}
+		catch (SQLException throwables) { throwables.printStackTrace(); }
+
+		return ret;
+	}
+	/**
 	 * This method returns a list of the userids of users following the user with the userid in the parameter.
 	 * @param userid the userid of the user.
 	 * @return a list of the userids of users following the user.
 	 */
 	public ArrayList<String> getFollowerUserIDs(int userid)
 	{
-		ArrayList<String> ret = new ArrayList<>();
+		var ret = new ArrayList<String>();
 		
 		try
 		{
