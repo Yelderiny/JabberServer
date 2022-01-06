@@ -12,6 +12,7 @@ public class ClientHandler extends Thread
     private int userID;
 
     private ObjectOutputStream forClient;
+    private ObjectInputStream fromClient;
 
     //accessors
     public String getUser() { return user; }
@@ -35,14 +36,14 @@ public class ClientHandler extends Thread
         {
             while (true)
             {
-                ObjectInputStream fromClient = new ObjectInputStream(clientSocket.getInputStream());
+                fromClient = new ObjectInputStream(clientSocket.getInputStream());
                 forClient = new ObjectOutputStream(clientSocket.getOutputStream());
 
                 JabberMessage msg = (JabberMessage) fromClient.readObject();
 
                 String ClientMsg = msg.getMessage();
 
-                String[] message = new String[0];
+                var message = new String[0];
                 final String command;
                 final String info;
 
@@ -62,14 +63,14 @@ public class ClientHandler extends Thread
                 //separate the command 'post' from the jab text
                 switch (command)
                 {
-                    case "signin" -> SignIn(info);
-                    case "register" -> RegisterUser(info);
+                    case "signin" -> SignIn(info, message[2]);
+                    case "register" -> RegisterUser(info, message[2]);
                     case "signout" -> SignOut();
                     case "timeline" -> Timeline();
                     case "users" -> UsersToFollow();
                     case "post" ->
                     {
-                        StringBuilder jabText = new StringBuilder(); //stringBuilder to store the jab text
+                        var jabText = new StringBuilder(); //stringBuilder to store the jab text
 
                         for (int i = 1; i < message.length; i++) jabText.append(message[i]).append(" ");  //separate the command 'post' from the jab text and add spaces
 
@@ -83,7 +84,12 @@ public class ClientHandler extends Thread
         catch (IOException | ClassNotFoundException e) { e.printStackTrace(); }
         finally
         {
-            try { clientSocket.close(); }
+            try
+            {
+                clientSocket.close();
+                forClient.close(); //without this, EOF exception issues arise
+                fromClient.close(); //without this, EOF exception issues arise
+            }
             catch (IOException e) { e.printStackTrace(); }
         }
     }
@@ -108,10 +114,30 @@ public class ClientHandler extends Thread
     {
         final int jabIDasInt = Integer.parseInt(jabIDasString); //change input ID from string to int
 
-        db.addLike(getUserID(), jabIDasInt); //add like to the database
-        forClient.writeObject(new JabberMessage("posted"));
-        forClient.flush();
+        ArrayList<ArrayList<String>> likes = db.getLikesOfUser(userID);
 
+        //check if the input jab has already been liked by the user
+        boolean alreadyLiked = false;
+        for (ArrayList<String> arr : likes)
+        {
+            if (arr.get(2).equals(jabIDasString))
+            {
+                alreadyLiked = true;
+                break;
+            }
+        }
+
+        if (alreadyLiked)
+        {
+            db.removeLike(userID, jabIDasInt); //remove like from the database
+            forClient.writeObject(new JabberMessage("unposted")); //jab has already been liked
+        }
+        else
+        {
+            db.addLike(getUserID(), jabIDasInt); //add like to the database
+            forClient.writeObject(new JabberMessage("posted"));
+        }
+        forClient.flush();
     }
 
     /**
@@ -147,7 +173,7 @@ public class ClientHandler extends Thread
     }
 
     /**
-     * not sure what so ever what this does
+     * Confirms user sign-out
      */
     private void SignOut() throws IOException
     {
@@ -159,11 +185,11 @@ public class ClientHandler extends Thread
      * Adds the user's username to the database and logs them in. The log in takes the form of initializing the global variables user and userID
      * @param username the username to be added to the database
      */
-    private void RegisterUser(final String username) throws IOException
+    private void RegisterUser(final String username, final String password) throws IOException
     {
         //add user to the database
-        String email = username + "@gmail.com"; //create user email
-        db.addUser(username, email); //add user to the database
+        final String email = username + "@gmail.com"; //create user email
+        db.addUser(username, email, password); //add user to the database
 
         //initialize global variables
         setUser(username);
@@ -177,18 +203,23 @@ public class ClientHandler extends Thread
      * Logs the user in. The log in takes the form of initializing the global variables user and userID. If the username is invalid, the server doesn't log the client in
      * @param username the username to be checked in the database
      */
-    private void SignIn(final String username) throws IOException
+    private void SignIn(final String username, final String password) throws IOException
     {
         final int ID = db.getUserID(username); //get the userid from the database
+        final String pass = db.getUserPassword(username); //get the password from the database
 
         if (ID == -1) forClient.writeObject(new JabberMessage("unknown-user"));
         else
         {
-            //initialize global variables
-            setUser(username);
-            setUserID(ID);
+            if (!pass.trim().equals(password.trim())) forClient.writeObject(new JabberMessage("incorrect-pass"));
+            else
+            {
+                //initialize global variables
+                setUser(username);
+                setUserID(ID);
 
-            forClient.writeObject(new JabberMessage("signedin"));
+                forClient.writeObject(new JabberMessage("signedin"));
+            }
         }
         forClient.flush();
     }

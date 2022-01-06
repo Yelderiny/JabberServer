@@ -143,7 +143,7 @@ public class JabberDatabase {
 
 		try
 		{
-			PreparedStatement stmt = conn.prepareStatement("select username, jabtext from jab natural join jabberuser where jabid in (select jabid from likes where userid = ?)");
+			PreparedStatement stmt = conn.prepareStatement("select username, jabtext, jabid from jab natural join jabberuser where jabid in (select jabid from likes where userid = ?)");
 		
 			stmt.setInt(1, userid);
 			
@@ -153,7 +153,8 @@ public class JabberDatabase {
 			{
 				ArrayList<String> r = new ArrayList<>();
 				r.add(rs.getObject("username").toString()); 
-				r.add(rs.getObject("jabtext").toString()); 
+				r.add(rs.getObject("jabtext").toString());
+				r.add(rs.getObject("jabid").toString());
 				ret.add(r);
 			}
 		} catch (SQLException e) { e.printStackTrace(); }
@@ -285,21 +286,22 @@ public class JabberDatabase {
 	 * @param username the username of the new user.
 	 * @param emailadd the email address of the new user.
 	 */
-	public void addUser(String username, String emailadd)
+	public void addUser(String username, String emailadd, String password)
 	{
 		int newid = getNextUserID();
 		
 		try
 		{
-			PreparedStatement stmt = conn.prepareStatement("insert into jabberuser (values(?,?,?))");
+			PreparedStatement stmt = conn.prepareStatement("insert into jabberuser (values(?,?,?,?))");
 			
 			stmt.setInt(1, newid);
 			stmt.setString(2, username);
 			stmt.setString(3, emailadd);
+			stmt.setString(4, password);
 			
 			stmt.executeUpdate();
 			
-			addFollower(newid, newid);
+			addFollower(newid, newid); //the user follows himself
 			
 		} catch (SQLException e) { e.printStackTrace(); }
 	}
@@ -365,6 +367,25 @@ public class JabberDatabase {
 			
 		} catch (SQLException e) { e.printStackTrace(); }
 	}
+
+	/**
+	 * This method removes an existing like: the user with the given user id unlikes the jab with the given jab id
+	 * @param userid the user
+	 * @param jabid the jab
+	 */
+	public void removeLike(int userid, int jabid)
+	{
+		try
+		{
+			PreparedStatement stmt = conn.prepareStatement("delete from likes where userid = ? and jabid = ?");
+
+			stmt.setInt(1, userid);
+			stmt.setInt(2, jabid);
+
+			stmt.executeUpdate();
+		}
+		catch (SQLException throwables) { throwables.printStackTrace(); }
+	}
 	
 	/**
 	 * This method returns a list of users with the most followers.
@@ -429,7 +450,29 @@ public class JabberDatabase {
 		} catch (SQLException e) { e.printStackTrace(); }
 
 		return ret;
-	
+	}
+
+	/**
+	 * A convenience method to get the password of the user given the input username
+	 * @param username the username of the user
+	 * @return the password of the suer
+	 */
+	public String getUserPassword(String username)
+	{
+		String ret = "";
+
+		try
+		{
+			PreparedStatement stmt = conn.prepareStatement("select password from jabberuser where username = ?");
+			stmt.setString(1, username);
+
+			ResultSet rs = stmt.executeQuery();
+
+			while (rs.next()) { ret = rs.getString(1); } //only one result anyway.
+		}
+		catch (SQLException throwables) { throwables.printStackTrace(); }
+
+		return ret;
 	}
 
 
